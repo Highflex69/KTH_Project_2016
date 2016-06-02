@@ -5,27 +5,16 @@
 var APIURL1 = "https://api.helldiversgame.com/1.0/";
 var APIURL2 = "https://files.arrowheadgs.com/helldivers_api/default/" ;
 var latestSeason;
-// nödvändiga arrayer
-var seasons=new Array(), seasonsLengths=[];
-var defend_ev=[], defend_ev_season=[];
-var attack_ev=[], attack_ev_season=[];
-
-
-
-
-/**
-
- * **/
 var allSeasons = []; // has every season data 1-current season
 var allAttackEvents = [];
 var allDefendEvents = [];
-/**
- * **/
 
-//change name in the future
-function getSeasonSnapshot(season)
+/**
+ * Teddy & Co added:
+ */
+//get_snapshots of the whole season
+function getSeason(season)
 {
-    ;
     for(var i=0;i<allSeasons.length;i++)
     {
         if(allSeasons[i].snapshots[0].season  == season)
@@ -34,7 +23,10 @@ function getSeasonSnapshot(season)
         }
     }
 }
-
+/**
+ * Teddy & Co added:
+ */
+//in get_snapshots the snapshots array in season
 function getSnapshotsInSeason(season)
 {
     for(var i=0;i<allSeasons.length;i++)
@@ -45,13 +37,15 @@ function getSnapshotsInSeason(season)
         }
     }
 }
-
-function getAttackEvents2(season, enemytype)
+/**
+ * Teddy & Co added:
+ */
+function getAttackEvents(season, enemytype)
 {
-    var seasonAttackEvents = getSeasonSnapshot(season).attack_events;
+    var seasonAttackEvents = getSeason(season).attack_events;
     if(seasonAttackEvents == null)
     {
-      
+
         return null;
     }
 
@@ -74,11 +68,12 @@ function getAttackEvents2(season, enemytype)
         return seasonAttackEvents;
     }
 }
-
-function getDefendEvents2(season, enemytype)
+/**
+ * Teddy & Co added:
+ */
+function getDefendEvents(season, enemytype)
 {
-    var seasonDefEvents = getSeasonSnapshot(season).defend_events;
-
+    var seasonDefEvents = getSeason(season).defend_events;
     if(seasonDefEvents == null)
     {
         return null;
@@ -103,11 +98,15 @@ function getDefendEvents2(season, enemytype)
         return seasonDefEvents;
     }
 }
-
+/**
+ * Teddy & Co added:
+ */
 function getLatestSeason(){
     return latestSeason;
 }
-
+/**
+ * Teddy & Co added:
+ */
 function getStartTimeInSeason(season)
 {
     var dataResponse = getSnapshotsInSeason(season);
@@ -119,7 +118,9 @@ function getStartTimeInSeason(season)
 
     return null;
 }
-
+/**
+ * Teddy & Co added:
+ */
 function getLatestDayInSeason(season, enemytype){
 
     var tempSeasonInfo = getSnapshotsInSeason(season);
@@ -133,9 +134,9 @@ function getLatestDayInSeason(season, enemytype){
         var defEventsForEnemyAmount = 0;
         var attackEventsForEnemyAmount = 0;
 
-        var enemyTypeDefEvents = getDefendEvents2(season, enemytype);
-        var enemyTypeAttackEvents = getAttackEvents2(season, enemytype);
-       
+        var enemyTypeDefEvents = getDefendEvents(season, enemytype);
+        var enemyTypeAttackEvents = getAttackEvents(season, enemytype);
+
         if(enemyTypeDefEvents != null)
         {
 
@@ -146,12 +147,14 @@ function getLatestDayInSeason(season, enemytype){
         {
             attackEventsForEnemyAmount = enemyTypeAttackEvents.length;
         }
-       
+
         return Math.max(defEventsForEnemyAmount,attackEventsForEnemyAmount);
     }
     return null;
 }
-
+/**
+ * Teddy & Co added:
+ */
 function extractEverything(JsonObj){
 
     allSeasons.push(JsonObj.data);
@@ -165,16 +168,21 @@ function extractEverything(JsonObj){
         allAttackEvents.push(JsonObj.data.attack_events);
     }
     //got to do same for defend event as attack events
-    allDefendEvents.push(JsonObj.data.defend_events);
+    if(JsonObj.data.defend_events === undefined)
+    {
+        allDefendEvents.push(null);
+    }
+    else
+    {
+        allDefendEvents.push(JsonObj.data.defend_events);
+    }
 
 
-
+    //for warStats
     getSnapshots(JsonObj.data.snapshots, seasons.length, JsonObj.data.points_max);
-    getDefendEvents(JsonObj.data.defend_events, defend_ev.length);
-    getAttackEvents(JsonObj.data.attack_events, attack_ev.length);
 }
 
-var app2 = angular.module('app2', [], function ($httpProvider) {
+var extractDataFromAPI = angular.module('extractDataFromAPI', [], function ($httpProvider) {
 
     /**
      * Teddy & Co modified following:
@@ -186,7 +194,7 @@ var app2 = angular.module('app2', [], function ($httpProvider) {
     initialize(dataService);
 });
 
-app2.service('dataService', function ($http) {
+extractDataFromAPI.service('dataService', function ($http) {
 
     this.getSnapshots = function (season, start, end) {
         /**
@@ -195,7 +203,7 @@ app2.service('dataService', function ($http) {
         // $http() returns a $promise that we can add handlers with .then()
         return $http({
             method: 'POST',
-            url: APIURL1,
+            url: APIURL2,
             data : "action=get_snapshots" + "&season=" + season + "&start=" + start + "&end=" + end
         });
     };
@@ -206,7 +214,7 @@ app2.service('dataService', function ($http) {
          */
         return $http({
             method: "POST",
-            url: APIURL1,
+            url: APIURL2,
             data :'action=get_campaign_status'
         });
     };
@@ -215,13 +223,15 @@ app2.service('dataService', function ($http) {
     {
         return $http({
             method: 'POST',
-            url:APIURL1,
+            url:APIURL2,
             data :'action=get_season_statistics' + "&season=" + season
         });
     };
 
 });
-
+/**
+ * Teddy & Co modified:
+ */
 initialize = function (dataService){
     dataService.getCampaign().then(function(dataResponse){
         latestSeason = dataResponse.data.campaign_status[0].season;
@@ -232,16 +242,51 @@ initialize = function (dataService){
                 extractEverything(dataResponse);
             });
         }
-
-        //for stats ex. KD etc
+        //start: this is the init of the variables that need to be ready for use in MainpageData.js.
         run(dataResponse.data.statistics);
-
         choosedSeason = currentSeason = latestSeason;
         createSelectOptions();
+        //end
+        for(var counter=1;counter<=latestSeason;counter++) {
+            dataService.getSeasonStatistics(counter).then(function (dataResponse) { // skickar in och sparar
 
-
+                run(dataResponse.data.statistics);
+            });
+        }
     });
 };
+
+
+/**
+ * for warStats
+ * **/
+
+var seasons=new Array(), seasonsLengths=[];
+
+/*
+ 1. Returnerar en hel säsong med objekt och möjligheten att välja enemytyper för varje dag
+ 2. resultatet som returneras: möjligheten att välja dag och enemytyp [dag (beroende av hur lång en säsong är 0 -x )] [enemytyp (0-2 max)]
+ */
+function getSeasonInfo(season){
+    var start= seasonsLengths[season].start;
+    var end = seasonsLengths[season].end;
+    var result=[];
+
+    var startTmp=start;
+    var tmpCounter=0;
+
+    for(var xCount=start;xCount<end;xCount++){
+        result[tmpCounter]=new Array(seasons[xCount].length);
+
+        for(var yCount=0;yCount<seasons[xCount].length;yCount++){
+            result[tmpCounter][yCount]=seasons[startTmp][yCount];
+
+        }
+        startTmp++;
+        tmpCounter++;
+    }
+    return result;
+}
 
 function getSnapshots(snapObject, currentSeasonLength, pointsMaxObj){
     if(snapObject !=null){
@@ -271,174 +316,4 @@ function getSnapshots(snapObject, currentSeasonLength, pointsMaxObj){
         start: currentSeasonLength,
         end: seasons.length
     };
-}
-
-/*
-1. sparar alla defend events i en 1 dimensionell array
- */
-function getDefendEvents(defendObject, currentDefenseLength){
-
-
-    if(defendObject != null){
-        var globalSeason=defendObject[0].season;
-        for(var counter=0;counter<defendObject.length;counter++){
-            defend_ev [counter+currentDefenseLength]={
-                season: defendObject[counter].season,
-                event_id: defendObject[counter].event_id,
-                start_time: defendObject[counter].start_time,
-                end_time: defendObject[counter].end_time,
-                region: defendObject[counter].region,
-                enemy: defendObject[counter].enemy,
-                points_max: defendObject[counter].points_max,
-                points: defendObject[counter].points,
-                status: defendObject[counter].status,
-                players_at_start: defendObject[counter].players_at_start
-            };
-        }
-        defend_ev_season[globalSeason]={
-            start:currentDefenseLength,
-            end: defend_ev.length
-        };
-    }
-    else
-    {
-        defend_ev_season[globalSeason]= null;
-    }
-
-}
-
-
-
-/*
- 1. sparar alla attackevents i en 1 dimensionell array
- */
-function getAttackEvents(attackObject, currentAttackLength){
-    if(attackObject != null)
-    {
-        var globalSeason=attackObject[0].season;
-        for(var counter=0;counter<attackObject.length;counter++){
-            attack_ev [counter+currentAttackLength]={
-                season: attackObject[counter].season,
-                event_id: attackObject[counter].event_id,
-                start_time: attackObject[counter].start_time,
-                end_time: attackObject[counter].end_time,
-                region: attackObject[counter].region,
-                enemy: attackObject[counter].enemy,
-                points_max: attackObject[counter].points_max,
-                points: attackObject[counter].points,
-                status: attackObject[counter].status,
-                players_at_start: attackObject[counter].players_at_start
-            };
-        }
-        attack_ev_season[globalSeason]={
-            start:currentAttackLength,
-            end: attack_ev.length
-        }
-    }
-    else
-    {
-        attack_ev_season[globalSeason]=null;
-    }
-
-
-}
-
-
-// returnerar samtliga säsonger
-function getSeasonsArray(){
-    return seasons;
-}
-
-// returnerar samtliga defend_events
-function getDefend_evArray(){
-    return defend_ev;
-}
-
-// returnerar samtliga attack_ events
-function getAttack_evArray(){
-    return attack_ev;
-}
-
-/*
-1. Returnerar en hel säsong med objekt och möjligheten att välja enemytyper för varje dag
-2. resultatet som returneras: möjligheten att välja dag och enemytyp [dag (beroende av hur lång en säsong är 0 -x )] [enemytyp (0-2 max)]
- */
-function getSeasonInfo(season){
-    var start= seasonsLengths[season].start;
-    var end = seasonsLengths[season].end;
-    var result=[];
-
-    var startTmp=start;
-    var tmpCounter=0;
-
-    for(var xCount=start;xCount<end;xCount++){
-        result[tmpCounter]=new Array(seasons[xCount].length);
-
-        for(var yCount=0;yCount<seasons[xCount].length;yCount++){
-            result[tmpCounter][yCount]=seasons[startTmp][yCount];
-
-        }
-        startTmp++;
-        tmpCounter++;
-    }
-    return result;
-}
-
-/*
-1. returnerar information för en specifik dag bara
-2. innehåller de tre olika enemytyperna bara, alltså kan man välja endas från 0-2
-3.  resultatet som returneras: [möjlighet att välja enemy 0-2 (max 3 enemies) ]
- */
-function getSeasonDay(season,day){
-    var start= seasonsLengths[season].start;
-    var end = seasonsLengths[season].end;
-    var result=[];
-    // start dagen + inskickade dagen för att få den specifika dagen
-    for(var count=0; count<3;count++){
-        result[count] = seasons[start+day][count];
-    }
-
-    return result;
-}
-
-/*
-1. returnerar alla defend_events för en specifik säsong
- */
-function getSeasonDefendEvents(season){
-    var result=[], resultCounter=0;
-
-    if(defend_ev_season[season] != null)
-    {
-        var start = defend_ev_season[season].start;
-        var end= defend_ev_season[season].end;
-
-        for(var counter=start;counter<end;counter++){
-            result[resultCounter++]=defend_ev[counter];
-        }
-    }
-    return result;
-
-}
-
-/*
-1. returnerar alla attack_events för en specifik säsong
- */
-function getSeasonAttackEvents(season){
-
-    var result=[], resultCounter=0;
-
-    if(attack_ev_season[season] != null)
-    {
-        var start = attack_ev_season[season].start;
-        var end= attack_ev_season[season].end;
-
-
-        for(var counter=start;counter<end;counter++){
-            result[resultCounter++]=attack_ev[counter];
-        }
-
-    }
-
-    return result;
-
 }

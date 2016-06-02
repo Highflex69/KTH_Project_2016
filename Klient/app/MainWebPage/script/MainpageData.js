@@ -1,12 +1,12 @@
 /****
- * need to put an global stats
- * need to set the size of slider acording to enemytype
- * need to sort the season,defend events and attack events
- *
+ * Teddy & co = Teddy & Carlos. This was to notice what was added and modified to avoid merge conflict and other problems.
+ * To-do:
+ * - The images need to be preloaded for better process performence, so it don't lag when sliding to fast.
+ * - The defend and attack events drop-down menu should be deleted or add the function to filter it in the newsfeed.
  * **/
 
 var sliderVal = 0;
-var enemyType = 0//"global_stats"; // Teddy & Co, default drop down menu value
+var enemyType = "global_stats"// Teddy & Co: default drop down menu value, but changes when recived info from API.
 var choosedSeason = 1;
 var currentSeason = 1;
 var flagg = false;
@@ -15,31 +15,15 @@ var mapImgCyborgs = "Images/helldivers_galcamp_progression/cyborg/helldivers_gal
 var mapImgIllu = "Images/helldivers_galcamp_progression/illuminate/helldivers_galcamp_progression_illuminate_";
 var mapImg = [mapImgBugs, mapImgCyborgs, mapImgIllu];
 var IMGformat = ".png";
-var jsonData = null; // Teddy & Co, for filtering
-var APIURL1 = "https://api.helldiversgame.com/1.0/";
-var APIURL2 = "https://files.arrowheadgs.com/helldivers_api/default/" ;
-var intervalId = null;
-var noEnemys = 3; //
+var intervalId = null; //the intervalId is the id for the playButton, the id is needed to stop it when pleased.
+var noEnemys = 3; // this need to be changed to a more efficient way.
 
 function evalSlider2() {
-
     sliderVal = document.getElementById('slider').value;
     document.getElementById('sliderValue').innerHTML = sliderVal;
-
-    var integer = sliderVal | 0;
-    var float=sliderVal%integer;
-
-    if(float > 0.99){
-
-        sliderVal=integer+1;
-        document.getElementById('sliderValue').innerHTML= sliderVal;
-        float=0;
-    }
 }
 
 function createSelectOptions() {
-
-    //  document.write("in test: "+currentSeason);
     var x = document.getElementById('seasons');
     var i;
 
@@ -57,20 +41,31 @@ function createSelectOptions() {
 }
 
 function saveSeason() {
-    choosedSeason = document.getElementById('seasons').value;
+    if(document.getElementById('seasons').value != null)
+    {
+        choosedSeason = document.getElementById('seasons').value;
+    }
+    else
+    {
+        choosedSeason = 1;
+    }
+
 }
+
+var app = angular.module('app', ['extractDataFromAPI']);
+
 /**
- * app2 should be named an other name.
-* **/
-var app = angular.module('app', ['app2']);
-
-
+ * Teddy & Co added and modified:
+ */
 function calculate_region(points, points_max) {
     var points_per_region = points_max / 10;
     var region = Math.min(Math.max(Math.floor(points / points_per_region), 0), 10);
     return region;
 }
 
+/**
+ * Teddy & Co added:
+ */
 function insertionSortEvents(events) {
 
     for(var i=1;i<events.length;i++)
@@ -84,9 +79,11 @@ function insertionSortEvents(events) {
         events[tempIndex] = temp;
     }
 }
-
+/**
+ * Teddy & Co added:
+ */
 function isAttackEventSuccessful(season, enemytype, atDay){
-    var attackEventOfEnemy = getAttackEvents2(season, enemytype);
+    var attackEventOfEnemy = getAttackEvents(season, enemytype);
     var firstDayTime = getStartTimeInSeason(choosedSeason);
     var attack_eventDay;
 
@@ -100,27 +97,25 @@ function isAttackEventSuccessful(season, enemytype, atDay){
     }
     return false;
 }
-
-function calculateImg(season, enemytype)
+/**
+ * Teddy & Co added:
+ */
+function calculateImg(season, enemy)
 {
     var result;
-    if(isAttackEventSuccessful(season, enemytype, Math.floor(sliderVal)))
+    if(isAttackEventSuccessful(season, enemy, Math.floor(sliderVal)))
     {
         result = 12;
     }
     else
     {
         var snapshotsCurrentSeason = getSnapshotsInSeason(season);
-        var seasonSnapshot = getSeasonSnapshot(season);
+        var seasonSnapshot = getSeason(season);
+        var points = (JSON.parse(snapshotsCurrentSeason[Math.floor(sliderVal)].data))[enemy].points;
+        var points_max = seasonSnapshot.points_max[enemy];
 
-        var points = (JSON.parse(snapshotsCurrentSeason[Math.floor(sliderVal)].data))[enemytype].points;
-
-        var points_max = seasonSnapshot.points_max[enemytype];
-
-        //console.log("points="+points);
-        //console.log("points_max"+points_max);
         result = calculate_region(points, points_max) + 1;
-        //console.log("result="+result);
+
         if (result < 10)
         {
             result = "0".concat(result);
@@ -130,16 +125,18 @@ function calculateImg(season, enemytype)
     return result;
 }
 
-app.controller("WebApiCtrl", function ($scope, dataService) {
+app.controller("WebApiCtrl", function ($scope) {
 
     $scope.data = null;
 
     // Ändrar dynamisk storleken på slidern beroende av den valda säsongen
     $scope.setEventSize = function () {
-
-        document.getElementById('slider').max = getLatestDayInSeason(choosedSeason, null)-0.02;//
+        document.getElementById('slider').max = getLatestDayInSeason(choosedSeason, null)-0.01;
     };
 
+    /**
+     * Teddy & Co added:
+     */
     $scope.resetSlider = function() {
         var defaultValue = 0;
         document.getElementById('slider').value = defaultValue;
@@ -147,17 +144,18 @@ app.controller("WebApiCtrl", function ($scope, dataService) {
         $scope.setEventSize();
         $scope.getImagePath();
         $scope.newsFeed();
-    }
-
-    $scope.defaultSlide = function () {
-        //
-        return 0;
+        $scope.warStats();
+        var table = document.getElementById("newsfeed");
+        while(table.rows.length > 0)
+        {
+            table.deleteRow(0);
+        }
     };
-
-    $scope.getInfoTest=function () {
-        var seasonResult=getSeasonInfo(choosedSeason);  // returnerar information beroende av säsongen och dagen som skickas in
-        var result= calculateLerp(seasonResult, sliderVal);
-
+    /**
+     * Teddy & Co modified:
+     */
+    $scope.defaultSlide = function () {
+        return 0;
     };
 
 
@@ -165,32 +163,18 @@ app.controller("WebApiCtrl", function ($scope, dataService) {
      * Teddy & Co modified:
      */
     $scope.camp = function () {
+        //updates the chosen enemy type.
         enemyType=document.getElementById('enemyType').value;
-
         /**
          * to get Region img :
          * **/
         $scope.getImagePath();
         /**
-         * to get global stats:
-         * **/
-
-        /**
          * to get enemy stats:
          * */
-                $scope.newsFeed();
+        $scope.newsFeed();
+        $scope.warStats();
     };
-
-
-
-    /**fixed currentsSeason in getCampaign function. It gets the currentSeason value**/
-    dataService.getCampaign().then(function (response) {
-
-        $scope.campaign = response.data;
-        currentSeason = response.data.campaign_status[0].season;
-        run(response.data.statistics);
-        $scope.calculation=getCalculations();
-    });
 
     /**
      * Teddy & Co modified:
@@ -202,27 +186,10 @@ app.controller("WebApiCtrl", function ($scope, dataService) {
     /**
      * Teddy & Co added:
      */
-    $scope.filterData = function(){
-
-
-        var element = document.getElementById('all');
-
-        if(jsonData != null && element.firstElementChild.nextElementSibling==null)
-        {
-            for(var datafiltered  in jsonData.data)
-            {
-                var option = document.createElement("option");
-                option.text = datafiltered;
-                element.add(option);
-            }
-        }
-    }
-
     $scope.getImagePath = function(){
         var URL;
         var result = [];
 
-        
         for(var i=0;i<noEnemys;i++)
         {
             result[i] = calculateImg(choosedSeason, i);
@@ -246,66 +213,144 @@ app.controller("WebApiCtrl", function ($scope, dataService) {
         }
     };
 
+    $scope.warStats=function () {
+        evalSlider2();
+        var stats=getSavedSeasonStatstics(choosedSeason);
+        var seasonStats=getSeasonInfo(choosedSeason);
+        var enemiesLerp=calculateLerp(seasonStats, sliderVal);
+        var events=[];
 
+        for(var counter=0;counter<stats.length;counter++){
+            var dataText=[];
+            var enemy="";
+
+            if(counter == 0){
+                enemy="Bugs:";
+            }else if(counter ==1){
+                enemy="Cyborgs:";
+            }else{
+                enemy="Illuminate:";
+            }
+
+            dataText.push(enemy+"\n");
+            dataText.push(" Kills: "+stats[counter].kills.toFixed(0) + "  Deaths: "+stats[counter].deaths.toFixed(0)+
+                " Accuracy:"+stats[counter].accuracy.toFixed(2)+"%"+"  KD:"+stats[counter].kdRatio.toFixed(2)+ " Successful missions:"+stats[counter].missionsPercentage.toFixed(2)+ "%"+
+                " Succesfull defend events:"+stats[counter].defendPercentage.toFixed(2)+ "%"+" Succesfull attack events:"+stats[counter].attackPercentage.toFixed(2)+"%"+" Accidental kills:"+
+                stats[counter].accidentalKills.toFixed(2)+"%" +" points: "+enemiesLerp[counter].points.toFixed(0) +" points taken: "+enemiesLerp[counter].points_taken.toFixed(0));
+            events.push(dataText);
+        }
+
+        var table = document.getElementById("warfeed");
+        while(table.rows.length > 0){
+            table.deleteRow(0);
+        }
+
+        while(events.length > 0){
+            var tr = document.createElement("tr");
+            var td = document.createElement("td");
+            var td2 = document.createElement("td");
+
+            var datarow = events.shift();
+            td.appendChild(document.createTextNode(datarow[0]));
+            td.className = "newsfeedDayColumn";
+            td2.appendChild(document.createTextNode(datarow[1]));
+            td2.className = "newsfeedStringColumn";
+
+
+            tr.appendChild(td);
+            tr.appendChild(td2);
+            table.appendChild(tr);
+        }
+    };
+
+    /**
+     * Teddy & Co added:
+     */
     $scope.newsFeed = function(){
-
-        var dataResponse = getSeasonInfo(choosedSeason);
-
-        var allDefendEvents = getSeasonDefendEvents(choosedSeason);
-        var allAttackEvents = getSeasonAttackEvents(choosedSeason);
+        var allDefendEvents = getDefendEvents(choosedSeason, null);
+        var allAttackEvents = getAttackEvents(choosedSeason, null);
         //
         var allEvents = [];
 
         allEvents = allAttackEvents.concat(allDefendEvents);
-            //
-            insertionSortEvents(allEvents);
+        //
+        insertionSortEvents(allEvents);
 
-            //test -  to get all events into the newsfeed viewer
-            //counting days:
-            var firstDayTime = getStartTimeInSeason(choosedSeason);
+        //counting the time at first day of the season:
+        var firstDayTime = getStartTimeInSeason(choosedSeason);
 
-            //chrono sort text for attack and def
-            var newsfeedText = [];
+        //chronological sort the text for attack and defend events. This might be separated with a function.
+        var newsfeedText = [];
 
-            for(var i=0;i<allEvents.length;i++)
+        for(var i=0;i<allEvents.length;i++)
+        {
+            var datatext = [];
+            var day = Math.floor((allEvents[i].end_time - firstDayTime)/(60*60*24));
+            //datatext[0] = "DAY day"
+            datatext.push("DAY " + day);
+            //datatext[1] = "Region..." || "Final..."
+            if(allEvents[i].region)// if there is no region, then its an attack_event. The filtering could be done better.
             {
 
-                var datatext = [];
-                var day = Math.floor((allEvents[i].end_time - firstDayTime)/(60*60*24));
-                datatext.push("DAY " + day);
-                //datatext[1] = "Region..." || "Final..."
-                if(allEvents[i].region)//waiting for file
+                if(enemyType == "global_stats")
                 {
                     datatext.push("Region " + allEvents[i].region + " was attacked by " + allEvents[i].enemy +
                         " and Helldivers " +  (allEvents[i].status == "success" ? "defended" : "got crushed"));
                 }
                 else
                 {
+                    if(enemyType == allEvents[i].enemy)
+                    {
+                        datatext.push("Region " + allEvents[i].region + " was attacked by " + allEvents[i].enemy +
+                            " and Helldivers " +  (allEvents[i].status == "success" ? "defended" : "got crushed"));
+                    }
+                    else
+                    {
+                        datatext.push("");
+                    }
+                }
+            }
+            else
+            {
+                if(enemyType == "global_stats")
+                {
                     datatext.push("Final assault on " + allEvents[i].enemy + " was a " +
                         allEvents[i].status);
                 }
-                //datatext[2] = day;
-                datatext.push(day);
-                newsfeedText.push(datatext);
-            }
+                else
+                {
+                    if(enemyType == allEvents[i].enemy)
+                    {
+                        datatext.push("Final assault on " + allEvents[i].enemy + " was a " +
+                            allEvents[i].status);
+                    }
+                    else
+                    {
+                        datatext.push("");
+                    }
+                }
 
-            //text table
-            var table = document.getElementById("newsfeed");
-            while(table.rows.length > 0)
+            }
+            //datatext[2] = day;
+            datatext.push(day);
+            newsfeedText.push(datatext);
+        }
+
+        //text table for newsfeed
+        var table = document.getElementById("newsfeed");
+        while(table.rows.length > 0)
+        {
+            table.deleteRow(0);
+        }
+
+        while(newsfeedText.length > 0 && (newsfeedText[0])[2] <= sliderVal){
+            var tr = document.createElement("tr");
+            var td = document.createElement("td");
+            var td2 = document.createElement("td");
+            var newsrow = newsfeedText.shift();
+
+            if(newsrow[1] != "")
             {
-                table.deleteRow(0);
-            }
-
-
-
-            while(newsfeedText.length > 0 && (newsfeedText[0])[2] <= sliderVal){
-                var tr = document.createElement("tr");
-                var td = document.createElement("td");
-                var td2 = document.createElement("td");
-                var newsrow = newsfeedText.shift();
-
-
-
                 td.appendChild(document.createTextNode(newsrow[0]));
                 td.className = "newsfeedDayColumn";
                 td2.appendChild(document.createTextNode(newsrow[1]));
@@ -314,37 +359,47 @@ app.controller("WebApiCtrl", function ($scope, dataService) {
                 tr.appendChild(td2);
                 table.appendChild(tr);
             }
+
+        }
     };
 
+    /**
+     * Teddy & Co added:
+     */
     $scope.playSlider = function()
     {
         var latesDay = getLatestDayInSeason(choosedSeason,null);
         var dayStamp = Math.floor(sliderVal);
 
-         intervalId = setInterval(function () {
+        intervalId = setInterval(function () {
             if(dayStamp == latesDay)
             {
-                //$scope.resetSlider();
+
                 window.clearInterval(intervalId);
             }
             document.getElementById('slider').value = dayStamp;
             $scope.updateStats();
             dayStamp++;
         }, 500);
-    }
+    };
 
+    /**
+     * Teddy & Co added:
+     */
     $scope.updateStats = function () {
         evalSlider2();
+        $scope.warStats();
         $scope.newsFeed();
         $scope.getImagePath();
-    }
-
+    };
+    /**
+     * Teddy & Co added:
+     */
     $scope.stopSlider = function(){
         if(intervalId != null)
         {
             window.clearInterval(intervalId);
         }
-    }
-
+    };
 
 });

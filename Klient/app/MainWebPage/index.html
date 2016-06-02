@@ -5,7 +5,6 @@
     <title>Helldivers</title>
     <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.3.14/angular.min.js"></script>
     <script src="script/ExtractAllData.js"></script>
-    <script src="script/ProgressionMap.js"></script>
     <script src="script/MainpageData.js"></script>
     <script src="script/Calculation.js"></script>
     <script src="script/LinearCalc.js"></script>
@@ -24,8 +23,10 @@
     -->
 
     <!--divison for stats: -->
-    <div id="globalStats">
-        {{globalData}}
+    <div id="warStats">
+        <table id="warfeed">
+        </table>
+        <div id="logo2"></div>
     </div>
 
     <div id="enemyStats">
@@ -36,6 +37,8 @@
 
     </div>
 
+
+
     <!-- division for menu-->
     <div id="DivPosition" >
         <!-- divion for slider -->
@@ -44,16 +47,16 @@
                 <label>Day: </label>
                 <output id="sliderValue"></output>
             </p>
-            <button type="button"; onclick="angular.element(this).scope().playSlider()">Play</button>
+            <button type="button" onclick="angular.element(this).scope().playSlider()">Play</button>
             <input style="width:500px;" type="range" id="slider" min="{{defaultSlide()}}" max="angular.element(this).scope().setEventSize()" value="{{defaultSlide()}}" step="0.01"
-                   onchange="evalSlider2();" oninput="evalSlider2();angular.element(this).scope().newsFeed();angular.element(this).scope().getImagePath();"/>
+                   onchange="evalSlider2();" oninput="evalSlider2();angular.element(this).scope().newsFeed();angular.element(this).scope().warStats();angular.element(this).scope().getImagePath();"/>
             <!-- debug to stop the play button -->
-            <button type="button"; onclick="angular.element(this).scope().stopSlider()">Debug: Stop Play</button>
+            <button type="button" onclick="angular.element(this).scope().stopSlider()">Debug: Stop Play</button>
         </div>
         <br/>
         <!-- divion for the menu -->
         <div class="menuPosition">
-            <select id="enemyType" name="Faction" data-value="bugs" onchange="angular.element(this).scope().camp()">
+            <select id="enemyType" name="Faction" data-value="bugs" onchange="angular.element(this).scope().camp();angular.element(this).scope().resetSlider(); ">
                 <option value="global_stats">Global</option>
                 <option value="0">Bugs</option>
                 <option value="1">Cyborgs</option>
@@ -61,13 +64,14 @@
             </select>
 
             <!-- För att få dropdown menyn att reagera korrekt i alla lägen, Teddy & Co -->
-            <select id="seasons"data-value="1" onchange="saveSeason();angular.element(this).scope().resetSlider();angular.element(this).scope().getInfoTest();angular.element(this).scope().camp();">
+
+            <select id="seasons"data-value="1" onchange="saveSeason();angular.element(this).scope().resetSlider();angular.element(this).scope().camp();">
                 <option value="">Season</option>
             </select>
 
             <!-- För att få dropdown menyn att reagera korrekt i alla lägen, Teddy & Co -->
-            <select id="all"data-value="global" onmouseover="angular.element(this).scope().filterData();" onchange="angular.element(this).scope().camp()">
-             <!--   <option value="">All</option> -->
+            <select id="all"data-value="global"  onchange="angular.element(this).scope().camp()">
+                <!--   <option value="">All</option> -->
                 <option value="All">All</option>
                 <option value="defend_events">Defend Events</option>
                 <option value="attack_events">Attack Events</option>

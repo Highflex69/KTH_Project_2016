@@ -1,13 +1,18 @@
 var enemyResult = [];
+var seasonLength=[];
 
 function run(jsonObj) {
 
     var i;
-
+    var length= enemyResult.length;
+    var globalSeason=null;
+    
     if (jsonObj != null) {
 
         for (i = 0; i < jsonObj.length; i++) {
 
+            globalSeason= jsonObj[i].season;
+            
             var accidential = accidentialCalc(jsonObj[i].accidentals, jsonObj[i].kills);
             var attackPercentage = attackSuccessCalc(jsonObj[i].successful_attack_events, jsonObj[i].attack_events);
             var defendPercentage = defendSuccessCalc(jsonObj[i].successful_defend_events, jsonObj[i].defend_events);
@@ -15,8 +20,12 @@ function run(jsonObj) {
             var kdRatio = kdRatioCalc(jsonObj[i].kills, jsonObj[i].deaths);
             var accuracy = accuracyCalc(jsonObj[i].hits, jsonObj[i].shots);
 
-            enemyResult[i] = {
+            enemyResult[i+length] = {
 
+                season: globalSeason,
+                enemy: jsonObj[i].enemy,
+                kills: jsonObj[i].kills,
+                deaths: jsonObj[i].deaths,
                 accuracy: accuracy,
                 kdRatio: kdRatio,
                 missionsPercentage: missionsPercentage,
@@ -25,7 +34,40 @@ function run(jsonObj) {
                 accidentalKills: accidential
             };
         }
+
+        seasonLength[globalSeason]={
+
+            start: length,
+            end: enemyResult.length
+        };
+        
+    }else{
+
+        seasonLength[globalSeason]=null;
     }
+}
+
+/*
+    returnera statistiken beroende av säsongen som skickas in
+ */
+function getSavedSeasonStatstics(season){
+
+    var result=[];
+
+    if(seasonLength[season]!=null){
+
+        var start = seasonLength[season].start;
+        var end = seasonLength[season].end;
+        var counter=0;
+
+        for(var i=start;i<end;i++){
+
+            result[counter]=enemyResult[i];
+            counter++;
+        }
+    }
+
+    return result;
 }
 
 function accuracyCalc(hits, shots) {
